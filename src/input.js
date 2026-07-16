@@ -34,6 +34,7 @@ PE.input = (() => {
   });
   window.addEventListener('keyup', e => { const a = KEYMAP[e.code]; if (a) actUp(a); });
   window.addEventListener('contextmenu', e => e.preventDefault());
+  window.addEventListener('wheel', e => { if (PE.ui && PE.ui.onWheel) PE.ui.onWheel(e.deltaY); }, { passive: true });
 
   const cvPos = e => ({ x: e.clientX, y: e.clientY });
   window.addEventListener('mousemove', e => { const p = cvPos(e); st.mouse.x = p.x; st.mouse.y = p.y; st.pointer.x = p.x; st.pointer.y = p.y; });
@@ -56,7 +57,7 @@ PE.input = (() => {
     return null;
   }
   window.addEventListener('touchstart', e => {
-    e.preventDefault(); PE.audio.unlock();
+    e.preventDefault(); PE.audio.unlock(); PE.tryFullscreen();
     for (const t of e.changedTouches) {
       const x = t.clientX, y = t.clientY;
       const btn = (PE.state === 'run' && !PE.ui.modalOpen()) ? hitTBtn(x, y) : null;

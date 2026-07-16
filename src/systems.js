@@ -797,7 +797,9 @@ PE.sys = (() => {
     offer(n) {
       n = n || (PE.meta.talents.t_bless ? 4 : 3);
       const uniq = ['b_dawnheal', 'b_rollcrit', 'b_innerlight', 'b_rebuild', 'b_petsave', 'b_double', 'b_arrow'];
-      const pool = PE.D.BLESSINGS.filter(b => !(uniq.includes(b.id) && this.owned.includes(b.id)));
+      const pool = PE.D.BLESSINGS.filter(b =>
+        !(uniq.includes(b.id) && this.owned.includes(b.id)) &&
+        !(PE.isTouch && b.id === 'b_rollcrit')); // 触屏无翻滚
       const out = [];
       const bag = U.shuffle(pool);
       for (const b of bag) {
