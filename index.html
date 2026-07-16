@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>原始纪元 Primitive Era</title>
+<style>
+  html,body{margin:0;padding:0;background:#0a0c10;overflow:hidden;height:100%;touch-action:none;
+    -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
+  #game{display:block;width:100vw;height:100vh;touch-action:none;}
+  #rotate{display:none;position:fixed;inset:0;background:#0a0c10;color:#e8d5a8;z-index:99;
+    text-align:center;font:20px/1.6 sans-serif;padding-top:40vh;}
+  @media (orientation:portrait) and (pointer:coarse){ #rotate{display:block;} }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="rotate">📱 请旋转设备横屏游玩<br>Rotate to landscape</div>
+<script src="src/core.js"></script>
+<script src="src/input.js"></script>
+<script src="src/audio.js"></script>
+<script src="src/data.js"></script>
+<script src="src/sprites.js"></script>
+<script src="src/fx.js"></script>
+<script src="src/world.js"></script>
+<script src="src/player.js"></script>
+<script src="src/enemies.js"></script>
+<script src="src/systems.js"></script>
+<script src="src/ui.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>
