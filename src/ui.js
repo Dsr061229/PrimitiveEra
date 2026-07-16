@@ -9,6 +9,7 @@ PE.ui = (() => {
     modal: null, modalData: null,     // 'dawn'|'event'|'blessing'|'gate'
     toasts: [], forecastT: 0, forecast: null,
     uiRects: [], _newRects: [],
+    scrollY: 0, scrollMax: 0, _lastPY: null, clip: null, // 面板滚动
   };
   const F = s => `${Math.round(s * PE.ui_s)}px sans-serif`;
   const FB = s => `bold ${Math.round(s * PE.ui_s)}px sans-serif`;
@@ -17,14 +18,17 @@ PE.ui = (() => {
   /* ---------- 基础控件 ---------- */
   function regRect(x, y, w, h) { ui._newRects.push({ x, y, w, h }); }
   ui.overUI = (x, y) => ui.uiRects.some(r => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h);
+  const inClip = (x, y) => !ui.clip || (x >= ui.clip.x && x <= ui.clip.x + ui.clip.w && y >= ui.clip.y && y <= ui.clip.y + ui.clip.h);
   function hit(x, y, w, h) {
     for (const t of PE.input.st.taps) {
-      if (t.fresh && t.x >= x && t.x <= x + w && t.y >= y && t.y <= y + h) { PE.input.eatTap(t); PE.audio.sfx('ui'); return true; }
+      if (!t.fresh || !inClip(t.x, t.y)) continue; // 被裁剪(滚出可视区)的按钮不可点
+      if (t.x >= x && t.x <= x + w && t.y >= y && t.y <= y + h) { PE.input.eatTap(t); PE.audio.sfx('ui'); return true; }
     }
     return false;
   }
   function hover(x, y, w, h) {
     const p = PE.input.st.pointer;
+    if (!inClip(p.x, p.y)) return false;
     const over = p.x >= x && p.x <= x + w && p.y >= y && p.y <= y + h;
     if (over) PE.input.st.uiHot = true;
     return over;
@@ -73,8 +77,9 @@ PE.ui = (() => {
     ui.toasts.push({ msg, color, t: 4.5 });
     if (ui.toasts.length > 5) ui.toasts.shift();
   };
-  ui.openPanel = (name, arg) => { ui.panel = name; ui.panelArg = arg; PE.sys.build.exit(); PE.audio.sfx('ui'); };
+  ui.openPanel = (name, arg) => { ui.panel = name; ui.panelArg = arg; ui.scrollY = 0; PE.sys.build.exit(); PE.audio.sfx('ui'); };
   ui.closePanel = () => { ui.panel = null; };
+  ui.onWheel = dy => { if (ui.panel) ui.scrollY = U.clamp(ui.scrollY + dy * 0.6, 0, ui.scrollMax); };
   ui.modalOpen = () => !!(ui.modal || ui.panel);
   ui.showDawn = reward => { ui.modal = 'dawn'; ui.modalData = { reward, day: PE.world.day, kills: PE.world.kills }; };
   ui.showForecast = () => { ui.forecast = PE.enemies.director.forecast(); ui.forecastT = 12; };
@@ -93,7 +98,7 @@ PE.ui = (() => {
     ctx.fillText(`${Math.ceil(P.hp)}/${P.maxhp}`, m + sc(6), y + bh - sc(4));
     if (P.shield > 0) bar(ctx, m + bw * (P.hp / P.maxhp), y, bw * Math.min(P.shield / P.maxhp, 1 - P.hp / P.maxhp), bh, 1, 'rgba(109,220,255,0.8)', 'rgba(0,0,0,0)');
     y += bh + sc(4);
-    bar(ctx, m, y, bw * 0.8, sc(9), P.sta / 100, '#5da45a'); y += sc(13);
+    if (!PE.isTouch) { bar(ctx, m, y, bw * 0.8, sc(9), P.sta / 100, '#5da45a'); y += sc(13); } // 体力仅供翻滚(PC)
     bar(ctx, m, y, bw * 0.8, sc(9), P.hunger / 100, '#e0913d'); y += sc(13);
     if (W.season() === 'snow') { bar(ctx, m, y, bw * 0.8, sc(9), P.warmth / 100, '#6db8e8'); y += sc(13); }
     if (W.fear > 5) { bar(ctx, m, y, bw * 0.8, sc(9), W.fear / 100, '#b06dff'); ctx.fillStyle = '#b06dff'; ctx.font = F(10); ctx.fillText('恐惧', m + bw * 0.8 + sc(5), y + sc(8)); y += sc(13); }
@@ -169,23 +174,37 @@ PE.ui = (() => {
     }
     // 底左：小地图
     drawMinimap(ctx);
-    // 右侧功能按钮
-    const fbS = sc(46);
-    let fy = PE.H / 2 - fbS * 2.6;
-    const fx = PE.W - fbS - sc(8);
-    if (btn(ctx, fx, fy, fbS, fbS, '🏗', { font: F(22) })) { ui.panel = ui.panel === 'build' ? null : 'build'; } fy += fbS + sc(7);
-    if (btn(ctx, fx, fy, fbS, fbS, '🔬', { font: F(22) })) { ui.panel = ui.panel === 'tech' ? null : 'tech'; } fy += fbS + sc(7);
-    if (btn(ctx, fx, fy, fbS, fbS, '🛒', { font: F(22) })) { ui.panel = ui.panel === 'shop' ? null : 'shop'; } fy += fbS + sc(7);
-    if (btn(ctx, fx, fy, fbS, fbS, '👥', { font: F(22) })) { ui.panel = ui.panel === 'vill' ? null : 'vill'; } fy += fbS + sc(7);
-    const repCost = PE.sys.repairAllCost();
-    if (repCost > 0) { if (btn(ctx, fx, fy, fbS, fbS, '🔨' + repCost, { font: F(13), color: '#7a6236' })) PE.sys.repairAll(); fy += fbS + sc(7); }
-    if (PE.sys.tech.has('bloodrite') && W.phase === 'day' && !W.bloodmoonQueued) {
-      if (btn(ctx, fx, fy, fbS, fbS, '🌕', { font: F(20), color: '#8a3a3a', color2: '#6a2a2a' })) PE.sys.bloodRitual();
-      fy += fbS + sc(7);
+    if (!PE.isTouch) {
+      // PC：右侧功能按钮列
+      const fbS = sc(46);
+      let fy = PE.H / 2 - fbS * 2.6;
+      const fx = PE.W - fbS - sc(8);
+      if (btn(ctx, fx, fy, fbS, fbS, '🏗', { font: F(22) })) { ui.panel = ui.panel === 'build' ? null : 'build'; } fy += fbS + sc(7);
+      if (btn(ctx, fx, fy, fbS, fbS, '🔬', { font: F(22) })) { ui.panel = ui.panel === 'tech' ? null : 'tech'; } fy += fbS + sc(7);
+      if (btn(ctx, fx, fy, fbS, fbS, '🛒', { font: F(22) })) { ui.panel = ui.panel === 'shop' ? null : 'shop'; } fy += fbS + sc(7);
+      if (btn(ctx, fx, fy, fbS, fbS, '👥', { font: F(22) })) { ui.panel = ui.panel === 'vill' ? null : 'vill'; } fy += fbS + sc(7);
+      const repCost = PE.sys.repairAllCost();
+      if (repCost > 0) { if (btn(ctx, fx, fy, fbS, fbS, '🔨' + repCost, { font: F(13), color: '#7a6236' })) PE.sys.repairAll(); fy += fbS + sc(7); }
+      if (PE.sys.tech.has('bloodrite') && W.phase === 'day' && !W.bloodmoonQueued) {
+        if (btn(ctx, fx, fy, fbS, fbS, '🌕', { font: F(20), color: '#8a3a3a', color2: '#6a2a2a' })) PE.sys.bloodRitual();
+        fy += fbS + sc(7);
+      }
+      if (btn(ctx, fx, fy, fbS, fbS, '⏸', { font: F(20) })) PE.paused = true;
+    } else {
+      // 触屏：功能键排在顶部时钟两侧（右下角留给操作键，全部拇指可达）
+      const fbS = sc(40), g2 = sc(7), cyb = m;
+      const lx1 = cx - sc(44) - fbS, lx2 = lx1 - fbS - g2, lx3 = lx2 - fbS - g2;
+      const rx1 = cx + sc(44), rx2 = rx1 + fbS + g2, rx3 = rx2 + fbS + g2;
+      if (btn(ctx, lx2, cyb, fbS, fbS, '🏗', { font: F(19) })) ui.panel = ui.panel === 'build' ? null : 'build';
+      if (btn(ctx, lx1, cyb, fbS, fbS, '🔬', { font: F(19) })) ui.panel = ui.panel === 'tech' ? null : 'tech';
+      if (btn(ctx, rx1, cyb, fbS, fbS, '🛒', { font: F(19) })) ui.panel = ui.panel === 'shop' ? null : 'shop';
+      if (btn(ctx, rx2, cyb, fbS, fbS, '👥', { font: F(19) })) ui.panel = ui.panel === 'vill' ? null : 'vill';
+      if (btn(ctx, rx3, cyb, fbS, fbS, '⏸', { font: F(18) })) PE.paused = true;
+      if (PE.sys.tech.has('bloodrite') && W.phase === 'day' && !W.bloodmoonQueued) {
+        if (btn(ctx, lx3, cyb, fbS, fbS, '🌕', { font: F(18), color: '#8a3a3a', color2: '#6a2a2a' })) PE.sys.bloodRitual();
+      }
+      drawTouchControls(ctx);
     }
-    if (btn(ctx, fx, fy, fbS, fbS, '⏸', { font: F(20) })) PE.paused = true;
-    // 触屏操作按钮
-    if (PE.isTouch) drawTouchControls(ctx);
     // 黄昏敌情预告
     if (ui.forecastT > 0 && ui.forecast) {
       ui.forecastT -= 1 / 60;
@@ -279,12 +298,10 @@ PE.ui = (() => {
       ctx.fillStyle = 'rgba(240,230,200,0.4)';
       ctx.beginPath(); ctx.arc(j.ox + j.x * sc(56), j.oy + j.y * sc(56), sc(26), 0, U.TAU); ctx.fill();
     }
-    // 动作按钮
-    const bs = sc(42);
+    // 动作按钮：只留攻击 + 交互，右下角垂直排列（闪避已按反馈移除）
     const defs = [
-      ['atk', '⚔', PE.W - sc(76), PE.H - sc(96), sc(50)],
-      ['roll', '💨', PE.W - sc(160), PE.H - sc(66), bs],
-      ['interact', '✋', PE.W - sc(66), PE.H - sc(190), bs],
+      ['atk', '⚔', PE.W - sc(80), PE.H - sc(90), sc(54)],
+      ['interact', '✋', PE.W - sc(92), PE.H - sc(214), sc(42)],
     ];
     for (const [name, icon, x, y, r] of defs) {
       PE.input.regBtn(name, x, y, r * 1.25);
@@ -339,24 +356,48 @@ PE.ui = (() => {
   /* ---------- 面板 ---------- */
   function drawPanels(ctx) {
     if (!ui.panel) return;
-    const pw = Math.min(sc(620), PE.W - sc(20)), ph = Math.min(sc(460), PE.H - sc(20));
+    const pw = Math.min(sc(620), PE.W - sc(20)), ph = Math.min(sc(460), PE.H - sc(16));
     const px = PE.W / 2 - pw / 2, py = PE.H / 2 - ph / 2;
     const titles = { build: '🏗 建造', shop: '🛒 图腾商店', craft: '⚒ 工作台', tech: '🔬 部落科技', vill: '👥 村民', tribe: '🤝 部落外交' };
     panelBg(ctx, px, py, pw, ph, titles[ui.panel]);
-    if (btn(ctx, px + pw - sc(44), py + sc(8), sc(36), sc(36), '✕')) ui.closePanel();
-    const cx = px + sc(16), cy = py + sc(56), cw = pw - sc(32);
+    if (btn(ctx, px + pw - sc(44), py + sc(8), sc(36), sc(36), '✕')) { ui.closePanel(); return; }
+    const cx = px + sc(16), cy0 = py + sc(52), cw = pw - sc(32), chh = ph - sc(64);
+    // 内容区裁剪 + 滚动偏移
+    ctx.save();
+    ctx.beginPath(); ctx.rect(px + 2, cy0, pw - 4, chh); ctx.clip();
+    ui.clip = { x: px + 2, y: cy0, w: pw - 4, h: chh };
     ctx.textAlign = 'left';
-    if (ui.panel === 'build') drawBuild(ctx, cx, cy, cw, ph - sc(70));
-    else if (ui.panel === 'shop') drawShop(ctx, cx, cy, cw);
-    else if (ui.panel === 'craft') drawCraft(ctx, cx, cy, cw);
-    else if (ui.panel === 'tech') drawTech(ctx, cx, cy, cw, ph - sc(70));
-    else if (ui.panel === 'vill') drawVill(ctx, cx, cy, cw);
-    else if (ui.panel === 'tribe') drawTribe(ctx, cx, cy, cw);
+    ui.scrollY = U.clamp(ui.scrollY, 0, ui.scrollMax); // 用上一帧的上限预钳制，避免出现一帧空白
+    const cy = cy0 + sc(6) - ui.scrollY;
+    let contentH = 0;
+    if (ui.panel === 'build') contentH = drawBuild(ctx, cx, cy, cw);
+    else if (ui.panel === 'shop') contentH = drawShop(ctx, cx, cy, cw);
+    else if (ui.panel === 'craft') contentH = drawCraft(ctx, cx, cy, cw);
+    else if (ui.panel === 'tech') contentH = drawTech(ctx, cx, cy, cw);
+    else if (ui.panel === 'vill') contentH = drawVill(ctx, cx, cy, cw);
+    else if (ui.panel === 'tribe') contentH = drawTribe(ctx, cx, cy, cw);
+    ctx.restore();
+    ui.clip = null;
+    ui.scrollMax = Math.max(0, (contentH || 0) + sc(14) - chh);
+    ui.scrollY = U.clamp(ui.scrollY, 0, ui.scrollMax);
+    // 滚动条
+    if (ui.scrollMax > 0) {
+      const barH = Math.max(sc(24), chh * chh / (chh + ui.scrollMax));
+      const barY = cy0 + (chh - barH) * (ui.scrollY / ui.scrollMax);
+      ctx.fillStyle = 'rgba(220,200,150,0.4)';
+      PE.S.rr(ctx, px + pw - sc(10), barY, sc(5), barH, sc(2.5)); ctx.fill();
+    }
+    // 拖动滚动（触屏滑动 / 鼠标拖住）
+    const p = PE.input.st.pointer;
+    if (p.down && p.x >= px && p.x <= px + pw && p.y >= cy0 && p.y <= cy0 + chh) {
+      if (ui._lastPY !== null) ui.scrollY = U.clamp(ui.scrollY - (p.y - ui._lastPY), 0, ui.scrollMax);
+      ui._lastPY = p.y;
+    } else ui._lastPY = null;
   }
 
-  function drawBuild(ctx, x, y, w, h) {
+  function drawBuild(ctx, x, y, w) {
     const list = PE.sys.build.available();
-    const bs = sc(102), gap = sc(8), cols = Math.floor(w / (bs + gap));
+    const bs = sc(102), gap = sc(8), cols = Math.max(2, Math.floor(w / (bs + gap)));
     list.forEach((id, i) => {
       const d = PE.D.BUILDINGS[id];
       const bx = x + (i % cols) * (bs + gap), by = y + Math.floor(i / cols) * (bs * 0.82 + gap);
@@ -381,9 +422,8 @@ PE.ui = (() => {
     });
     // 拆除模式入口（触屏可用；PC 也可直接右键点建筑拆除）
     const di = list.length;
-    const cols2 = Math.floor(w / (sc(102) + sc(8)));
     const dbs = sc(102), dgap = sc(8);
-    const dx = x + (di % cols2) * (dbs + dgap), dy = y + Math.floor(di / cols2) * (dbs * 0.82 + dgap);
+    const dx = x + (di % cols) * (dbs + dgap), dy = y + Math.floor(di / cols) * (dbs * 0.82 + dgap);
     regRect(dx, dy, dbs, dbs * 0.78); hover(dx, dy, dbs, dbs * 0.78);
     ctx.fillStyle = 'rgba(96,46,36,0.92)';
     PE.S.rr(ctx, dx, dy, dbs, dbs * 0.78, sc(8)); ctx.fill();
@@ -394,8 +434,10 @@ PE.ui = (() => {
     ctx.font = F(10); ctx.fillStyle = '#d8a08a';
     ctx.fillText('返还50%材料', dx + dbs / 2, dy + dbs * 0.71);
     if (hit(dx, dy, dbs, dbs * 0.78)) { PE.sys.build.enter('demolish'); ui.closePanel(); }
+    const rowH = bs * 0.82 + gap, totalRows = Math.ceil((list.length + 1) / cols);
     ctx.fillStyle = '#8a8272'; ctx.font = F(11); ctx.textAlign = 'center';
-    ctx.fillText('点地面放置 · 点已有墙原位升级 · 右键点建筑=直接拆除(返还50%)', x + w / 2, y + h - sc(4));
+    ctx.fillText('点地面放置 · 点已有墙原位升级 · 右键点建筑=直接拆除(返还50%)', x + w / 2, y + totalRows * rowH + sc(10));
+    return totalRows * rowH + sc(24);
   }
 
   function drawShop(ctx, x, y, w) {
@@ -416,6 +458,7 @@ PE.ui = (() => {
       }
       if (btn(ctx, x + w - sc(120), by + sc(2), sc(112), sc(34), label || ('🔥 ' + price), { disabled: dis || PE.world.ember < price })) PE.sys.shopBuy(it);
     });
+    return sc(16) + PE.D.SHOP.length * sc(44) + sc(8);
   }
 
   function drawCraft(ctx, x, y, w) {
@@ -441,9 +484,10 @@ PE.ui = (() => {
       row++;
     }
     if (row === 0) { ctx.fillStyle = '#8a8272'; ctx.font = F(13); ctx.fillText('暂无可打造的东西（研究更多科技解锁）', x, y + sc(20)); }
+    return Math.max(row, 1) * sc(42) + sc(16);
   }
 
-  function drawTech(ctx, x, y, w, h) {
+  function drawTech(ctx, x, y, w) {
     const T = PE.sys.tech;
     const brs = [['surv', '🌿 生存', '#5da45a'], ['war', '⚔ 战争', '#c25b3a'], ['myst', '🔮 巫术', '#8a5ad0']];
     const colW = w / 3;
@@ -479,10 +523,12 @@ PE.ui = (() => {
         row++;
       }
     });
+    const techBottom = sc(24) + 6 * sc(56);
     if (!PE.world.buildings.some(b => !b.dead && b.def.research)) {
       ctx.fillStyle = '#ff8f7a'; ctx.font = FB(13); ctx.textAlign = 'center';
-      ctx.fillText('⚠ 需要先建造「研究石坛」', x + w / 2, y + h - sc(6));
+      ctx.fillText('⚠ 需要先建造「研究石坛」', x + w / 2, y + techBottom + sc(12));
     }
+    return techBottom + sc(28);
   }
   function wrapText(ctx, text, x, y, maxW, lh, maxLines) {
     let line = '', ln = 0;
@@ -514,6 +560,7 @@ PE.ui = (() => {
       });
     });
     if (!vs.length) { ctx.fillStyle = '#8a8272'; ctx.font = F(13); ctx.fillText('还没有村民。收留流浪者或在商店招募。', x, y + sc(40)); }
+    return sc(18) + Math.max(vs.length, 1) * sc(46) + sc(24);
   }
 
   function drawTribe(ctx, x, y, w) {
@@ -543,6 +590,7 @@ PE.ui = (() => {
     });
     ctx.fillStyle = '#8a8272'; ctx.font = F(10.5);
     ctx.fillText('声望≥60结盟:Boss夜驰援 · ≤-40敌对:会夜袭你 · 攻击商人=劫掠(-50)', x, y + sc(140) + tr.goods.length * sc(42) + sc(16));
+    return sc(140) + tr.goods.length * sc(42) + sc(32);
   }
 
   /* ---------- 模态 ---------- */
@@ -581,7 +629,9 @@ PE.ui = (() => {
       });
     } else if (ui.modal === 'blessing') {
       const opts = ui.modalData.opts;
-      const cw2 = sc(158), ch = sc(190), gap = sc(12);
+      let cw2 = sc(158);
+      const ch = Math.min(sc(190), PE.H - sc(90)), gap = sc(12);
+      if (opts.length * cw2 + (opts.length - 1) * gap > PE.W - sc(16)) cw2 = (PE.W - sc(16) - (opts.length - 1) * gap) / opts.length; // 小屏收窄
       const total = opts.length * cw2 + (opts.length - 1) * gap;
       const mx = PE.W / 2 - total / 2, my = PE.H / 2 - ch / 2;
       ctx.fillStyle = '#e8cf9a'; ctx.font = FB(20); ctx.textAlign = 'center';

@@ -197,20 +197,38 @@ PE.autoQuality = () => {
   else if (PE.loop.fps > 57 && PE.quality < 2) PE.quality++;
 };
 
+/* ---------------- 移动端强制全屏（需在用户手势内调用） ---------------- */
+PE.tryFullscreen = () => {
+  if (!PE.isTouch || document.fullscreenElement) return;
+  const el = document.documentElement;
+  try {
+    const r = el.requestFullscreen ? el.requestFullscreen({ navigationUI: 'hide' })
+      : (el.webkitRequestFullscreen && el.webkitRequestFullscreen());
+    if (r && r.then) r.then(() => {
+      try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {}); } catch (e) {}
+    }).catch(() => {});
+  } catch (e) { /* iOS Safari 等不支持则静默 */ }
+};
+
 /* ---------------- 画布初始化与缩放 ---------------- */
 PE.initCanvas = () => {
   const cv = document.getElementById('game');
   PE.canvas = cv; PE.ctx = cv.getContext('2d');
   const resize = () => {
     PE.DPR = Math.min(window.devicePixelRatio || 1, 2);
-    PE.W = window.innerWidth; PE.H = window.innerHeight;
+    const vv = window.visualViewport; // 手机浏览器地址栏收放后的真实可视区
+    PE.W = Math.round(vv ? vv.width : window.innerWidth);
+    PE.H = Math.round(vv ? vv.height : window.innerHeight);
     cv.width = Math.floor(PE.W * PE.DPR); cv.height = Math.floor(PE.H * PE.DPR);
     cv.style.width = PE.W + 'px'; cv.style.height = PE.H + 'px';
     // UI 缩放：触屏更大；小屏适配
     PE.ui_s = (PE.isTouch ? 1.25 : 1) * PE.U.clamp(Math.min(PE.W / 1280, PE.H / 720), 0.72, 1.35);
     PE.cam.targetZoom = PE.U.clamp(Math.min(PE.W / 1280, PE.H / 720), 0.8, 1.25) * (PE.isTouch ? 0.9 : 1);
   };
-  window.addEventListener('resize', resize); resize();
+  window.addEventListener('resize', resize);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
+  document.addEventListener('fullscreenchange', resize);
+  resize();
   window.addEventListener('blur', () => { if (PE.state === 'run' && !PE.paused) PE.paused = true; });
   document.addEventListener('visibilitychange', () => { if (document.hidden && PE.state === 'run') PE.paused = true; });
 };
