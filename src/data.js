@@ -7,7 +7,7 @@ PE.D = {};
 /* ---------------- 全局平衡常数 ---------------- */
 PE.D.BAL = {
   DAY_LEN: 360, DUSK_LEN: 30, NIGHT_LEN: 150,
-  THREAT_BASE: 6, THREAT_GROW: 1.4, THREAT_GROW_ENDLESS: 1.22,
+  THREAT_BASE: 7, THREAT_GROW: 1.42, THREAT_GROW_ENDLESS: 1.22,
   BLOODMOON_MULT: 2.0, BLOODMOON_CHANCE: 0.15,
   FIRE_OUT_BASE: 0.8,          // 火种/秒/篝火等级
   FIRE_FUEL_SEC: 60,           // 每级每 60s 烧 1 木
@@ -102,6 +102,7 @@ PE.D.WILD = {
   rabbit: { name: '兔子', hp: 12, spd: 130, r: 8,  drops: { food: 2 }, flee: true },
   w_wolf: { name: '野狼', hp: 40, dmg: 8, spd: 95, r: 13, drops: { food: 2, fur: 1 }, tameFood: 'food', tameN: 3, tameAs: 'warwolf' },
   w_boar: { name: '野猪', hp: 120, dmg: 20, spd: 70, r: 17, drops: { food: 5, fur: 1 }, tameFood: 'food', tameN: 5, tameAs: 'ridingboar' },
+  hyena:  { name: '鬣狗', hp: 55, dmg: 9, spd: 105, r: 12, drops: { food: 2, bone: 1 }, ember: 6, atkRate: 1.1, aggressive: 1, aggro: 240 }, // 白天也主动袭击
 };
 PE.D.PETS = {
   warwolf:    { name: '战狼',   hp: 120, dmg: 16, spd: 110, r: 13, desc: '白天助猎，夜晚巡逻' },
@@ -163,7 +164,7 @@ PE.D.SHOP = [
 /* ---------------- 部落 ---------------- */
 PE.D.TRIBES = {
   river: {
-    name: '河岸部落', color: '#4e8fb8', rep0: 10, x: 3150, y: 1450,
+    name: '河岸部落', color: '#4e8fb8', rep0: 10, x: 3780, y: 1740,
     persona: '温和的渔猎商人',
     goods: [
       { name: '稀有草药 x3', get: { herb: 3 }, pay: { food: 6 } },
@@ -173,7 +174,7 @@ PE.D.TRIBES = {
     ],
   },
   ash: {
-    name: '灰烬部落', color: '#c25b3a', rep0: -10, x: 2950, y: 3100,
+    name: '灰烬部落', color: '#c25b3a', rep0: -10, x: 3620, y: 3700,
     persona: '好战的火山猎人', hostileRaids: true,
     goods: [
       { name: '黑曜石 x2', get: { obsidian: 2 }, pay: { food: 10 } },
@@ -259,31 +260,33 @@ PE.D.TALENTS = [
 
 /* ---------------- 地图布局 ---------------- */
 PE.D.MAP = {
-  camp: { x: 2000, y: 2100 },
+  camp: { x: 2400, y: 2520 },
   regions: [
-    { id: 'camp',   name: '部落营地', x: 2000, y: 2100, r: 420,  biome: 'plain' },
-    { id: 'forest', name: '幽绿森林', x: 1150, y: 2350, r: 620,  biome: 'forest' },
-    { id: 'river',  name: '大河',     x: 3050, y: 2000, r: 700,  biome: 'river' },
-    { id: 'swamp',  name: '迷雾沼泽', x: 1900, y: 3250, r: 520,  biome: 'swamp' },
-    { id: 'cave',   name: '回声洞穴', x: 950,  y: 1050, r: 480,  biome: 'rock' },
-    { id: 'snow',   name: '白牙雪山', x: 2100, y: 700,  r: 560,  biome: 'snow' },
-    { id: 'volcano',name: '灰烬火山', x: 3200, y: 3150, r: 520,  biome: 'volcano' },
+    { id: 'camp',   name: '部落营地', x: 2400, y: 2520, r: 480,  biome: 'plain' },
+    { id: 'forest', name: '幽绿森林', x: 1380, y: 2820, r: 700,  biome: 'forest' },
+    { id: 'river',  name: '大河',     x: 3660, y: 2400, r: 800,  biome: 'river' },
+    { id: 'swamp',  name: '迷雾沼泽', x: 2280, y: 3900, r: 600,  biome: 'swamp' },
+    { id: 'cave',   name: '回声洞穴', x: 1140, y: 1260, r: 550,  biome: 'rock' },
+    { id: 'snow',   name: '白牙雪山', x: 2520, y: 840,  r: 640,  biome: 'snow' },
+    { id: 'volcano',name: '灰烬火山', x: 3840, y: 3780, r: 600,  biome: 'volcano' },
+    { id: 'bonewaste', name: '巨骨荒原', x: 4000, y: 1080, r: 540, biome: 'plain' }, // 新区域：远古骸骨与鬣狗群
   ],
   // 河流带（矩形近似，x 范围内不可通行，浅滩除外）
-  riverBand: { x0: 2780, x1: 2950, fordY: [1850, 2050], fordY2: [2750, 2950] },
+  riverBand: { x0: 3336, x1: 3540, fordY: [2220, 2460], fordY2: [3300, 3540] },
   paintings: [ // 壁画碎片 x6
-    { x: 900, y: 950 }, { x: 1050, y: 1200 }, { x: 1750, y: 3350 },
-    { x: 2050, y: 3200 }, { x: 2150, y: 550 }, { x: 3300, y: 3050 },
+    { x: 1080, y: 1140 }, { x: 1260, y: 1440 }, { x: 2100, y: 4020 },
+    { x: 2460, y: 3840 }, { x: 2580, y: 660 }, { x: 3960, y: 3660 },
   ],
   artifacts: {
-    thunderspear: { need: ['frag1'], where: 'cave', x: 830, y: 1100, name: '雷石之矛' },
-    eternalflame: { need: ['frag2'], where: 'volcano', x: 3320, y: 3260, name: '不灭火种' },
-    wardrum: { need: [], where: 'swamp', x: 1980, y: 3390, star: 3, name: '先祖战鼓' },
+    thunderspear: { need: ['frag1'], where: 'cave', x: 996, y: 1320, name: '雷石之矛' },
+    eternalflame: { need: ['frag2'], where: 'volcano', x: 3984, y: 3912, name: '不灭火种' },
+    wardrum: { need: [], where: 'swamp', x: 2376, y: 4068, star: 3, name: '先祖战鼓' },
   },
-  eagleNest: { x: 2260, y: 620 },
-  chests: [ // 遗落宝箱 x8（探索奖励）
-    { x: 1100, y: 2620 }, { x: 1360, y: 2020 }, { x: 2620, y: 1680 }, { x: 1640, y: 3320 },
-    { x: 720, y: 1280 }, { x: 1920, y: 520 }, { x: 3340, y: 3340 }, { x: 2420, y: 2520 },
+  eagleNest: { x: 2712, y: 744 },
+  chests: [ // 遗落宝箱 x12（探索奖励）
+    { x: 1320, y: 3140 }, { x: 1630, y: 2420 }, { x: 3140, y: 2020 }, { x: 1970, y: 3980 },
+    { x: 860, y: 1540 }, { x: 2300, y: 620 }, { x: 4010, y: 4010 }, { x: 2900, y: 3020 },
+    { x: 4060, y: 1000 }, { x: 3050, y: 3260 }, { x: 560, y: 2520 }, { x: 3260, y: 560 },
   ],
 };
 

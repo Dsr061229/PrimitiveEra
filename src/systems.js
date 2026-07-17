@@ -575,6 +575,19 @@ PE.sys = (() => {
 
   /* ================= 战兽 ================= */
   S.pets = {
+    stance: 'follow', // follow 跟随 | attack 出击 | stay 回栏待命
+    cycleStance() {
+      const order = ['follow', 'attack', 'stay'];
+      this.stance = order[(order.indexOf(this.stance) + 1) % 3];
+      PE.ui.toast(this.stance === 'follow' ? '🐾 战兽指令：跟随（沿路跟着你）'
+        : this.stance === 'attack' ? '🐾 战兽指令：出击！（主动搜猎敌人）'
+        : '🐾 战兽指令：回栏待命');
+      PE.audio.sfx('ui');
+    },
+    anchor() { // 待命锚点：兽栏优先，其次篝火
+      for (const b of PE.world.buildings) if (!b.dead && b.def.beast) return b;
+      return PE.world.campfire;
+    },
     cap() { let c = 1; for (const b of PE.world.buildings) if (!b.dead && b.def.beast) c += b.def.beast; return c; },
     count() { let n = 0; for (const e of PE.world.ents) if (e.kind === 'pet' && !e.dead) n++; return n; },
     hasEagle() { return PE.world.ents.some(e => e.kind === 'pet' && e.type === 'eagle' && !e.dead); },
@@ -629,8 +642,9 @@ PE.sys = (() => {
         PE.world.revealFog(e.x, e.y, 500);
         return;
       }
-      const foe = PE.enemies.nearestFoe(e, 260) || (U.dist(P.x, P.y, e.x, e.y) < 300 ? PE.enemies.nearestFoe(P, 220) : null);
-      if (foe) {
+      // 按指令行动
+      const st = this.stance;
+      const engage = foe => {
         const dd = U.dist(e.x, e.y, foe.x, foe.y);
         if (dd < e.r + foe.r + 8) {
           e.walk = 0; e.atkTimer -= dt;
@@ -639,10 +653,25 @@ PE.sys = (() => {
             PE.combat.hit(foe, e.dmg * (1 + e.growth), { from: e, kb: 8, hitstop: false });
           }
         } else S.vill.move(e, Math.cos(U.ang(e.x, e.y, foe.x, foe.y)), Math.sin(U.ang(e.x, e.y, foe.x, foe.y)), e.spd, dt);
-      } else {
-        const dd = U.dist(e.x, e.y, P.x, P.y);
-        if (dd > 60) S.vill.move(e, Math.cos(U.ang(e.x, e.y, P.x, P.y)), Math.sin(U.ang(e.x, e.y, P.x, P.y)), e.spd, dt);
+      };
+      const goNear = (tx, ty, stop) => {
+        const dd = U.dist(e.x, e.y, tx, ty);
+        if (dd > stop) S.vill.move(e, Math.cos(U.ang(e.x, e.y, tx, ty)), Math.sin(U.ang(e.x, e.y, tx, ty)), e.spd, dt);
         else e.walk = Math.max(0, e.walk - dt * 5);
+      };
+      if (st === 'stay') { // 回栏待命：守在兽栏/篝火边，只反击靠近的敌人
+        const an = this.anchor();
+        const foe = an ? PE.enemies.nearestFoe(an, 200) : PE.enemies.nearestFoe(e, 160);
+        if (foe) engage(foe);
+        else if (an) goNear(an.x + Math.sin(e.id) * 40, an.y + Math.cos(e.id) * 40, 24);
+      } else if (st === 'attack') { // 出击：主动搜猎大范围内的敌人
+        const foe = PE.enemies.nearestFoe(e, 700) || PE.enemies.nearestFoe(P, 700);
+        if (foe) engage(foe);
+        else goNear(P.x, P.y, 90);
+      } else { // 跟随：贴身护卫（卡住会自动翻越/滑门，等效走可达路径）
+        const foe = PE.enemies.nearestFoe(e, 260) || (U.dist(P.x, P.y, e.x, e.y) < 300 ? PE.enemies.nearestFoe(P, 220) : null);
+        if (foe) engage(foe);
+        else goNear(P.x, P.y, 60);
       }
     },
     draw(ctx, e) {
@@ -898,14 +927,17 @@ PE.sys = (() => {
 
   S.spawnWildDay = () => {
     const W = PE.world;
-    const counts = { deer: 0, rabbit: 0, w_wolf: 0, w_boar: 0 };
+    const counts = {};
     for (const e of W.ents) if (e.kind === 'wild' && !e.dead) counts[e.type] = (counts[e.type] || 0) + 1;
-    const want = { deer: 4, rabbit: 4, w_wolf: 3, w_boar: 2 };
-    const f = PE.D.MAP.regions.find(r => r.id === 'forest');
-    for (const t in want) {
-      for (let i = counts[t] || 0; i < want[t]; i++) {
-        const a = U.rand(0, U.TAU), d = U.rand(100, f.r * 0.9);
-        const x = f.x + Math.cos(a) * d, y = f.y + Math.sin(a) * d;
+    // [种类, 目标数量, 栖息地]；已存在的个体优先抵扣靠前条目
+    const want = [['deer', 4, 'forest'], ['rabbit', 4, 'forest'], ['w_wolf', 3, 'forest'], ['w_boar', 2, 'forest'], ['hyena', 4, 'bonewaste'], ['hyena', 2, 'swamp']];
+    for (const [t, n, rid] of want) {
+      const take = Math.min(counts[t] || 0, n);
+      counts[t] = (counts[t] || 0) - take;
+      const rg = PE.D.MAP.regions.find(r => r.id === rid);
+      for (let i = take; i < n; i++) {
+        const a = U.rand(0, U.TAU), d = U.rand(100, rg.r * 0.9);
+        const x = rg.x + Math.cos(a) * d, y = rg.y + Math.sin(a) * d;
         if (PE.world.walkable(x, y)) PE.enemies.spawnWild(t, x, y);
       }
     }
@@ -982,8 +1014,8 @@ PE.sys = (() => {
       if (s) Object.assign(PE.meta, JSON.parse(s));
     } catch (e) {}
   };
-  S.hasRun = () => { try { return !!localStorage.getItem('pe_run_v1'); } catch (e) { return false; } };
-  S.clearRun = () => { try { localStorage.removeItem('pe_run_v1'); } catch (e) {} };
+  S.hasRun = () => { try { return !!localStorage.getItem('pe_run_v2'); } catch (e) { return false; } };
+  S.clearRun = () => { try { localStorage.removeItem('pe_run_v2'); } catch (e) {} };
   S.saveRun = () => {
     const W = PE.world, P = PE.player;
     const data = {
@@ -996,15 +1028,15 @@ PE.sys = (() => {
       pois: W.pois.map(p => ({ k: p.kind, found: p.found ? 1 : 0, taken: p.taken ? 1 : 0, used: p.used ? 1 : 0 })),
       villagers: W.ents.filter(e => e.kind === 'villager' && !e.dead).map(e => ({ name: e.name, trait: e.trait, job: e.job, hp: e.hp })),
       pets: W.ents.filter(e => e.kind === 'pet' && !e.dead).map(e => ({ t: e.type, hp: e.hp, g: e.growth })),
-      tech: S.tech.done, bless: S.bless.owned, tribes: S.tribes.rep,
+      tech: S.tech.done, bless: S.bless.owned, tribes: S.tribes.rep, petStance: S.pets.stance,
       fog: Array.from(W.fog),
       fallen: S.vill.fallen,
     };
-    try { localStorage.setItem('pe_run_v1', JSON.stringify(data)); } catch (e) {}
+    try { localStorage.setItem('pe_run_v2', JSON.stringify(data)); } catch (e) {}
   };
   S.loadRun = () => {
     let data;
-    try { data = JSON.parse(localStorage.getItem('pe_run_v1')); } catch (e) { return false; }
+    try { data = JSON.parse(localStorage.getItem('pe_run_v2')); } catch (e) { return false; }
     if (!data) return false;
     const W = PE.world;
     PE.player.reset(data.player.cls);
@@ -1039,6 +1071,7 @@ PE.sys = (() => {
     S.tech.done = data.tech || {};
     S.bless.owned = data.bless || [];
     S.tribes.rep = data.tribes || S.tribes.rep;
+    S.pets.stance = data.petStance || 'follow';
     S.vill.fallen = data.fallen || [];
     if (data.fog) W.fog = new Uint8Array(data.fog);
     S.recalcMods();

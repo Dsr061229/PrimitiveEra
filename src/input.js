@@ -10,8 +10,8 @@ PE.input = (() => {
     KeyW: 'up', KeyS: 'down', KeyA: 'left', KeyD: 'right',
     ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
     Space: 'roll', KeyE: 'interact', KeyB: 'build', KeyT: 'tech', KeyF: 'shop',
-    Escape: 'pause', Tab: 'panel', KeyQ: 'swap', KeyR: 'repair',
-    Digit1: 'hot1', Digit2: 'hot2', Digit3: 'hot3', Digit4: 'hot4', Digit5: 'hot5', Digit6: 'hot6',
+    Escape: 'pause', Tab: 'panel', KeyQ: 'swap', KeyR: 'repair', KeyC: 'mount', KeyX: 'petcmd',
+    Digit1: 'hot1', Digit2: 'hot2', Digit3: 'hot3', Digit4: 'hot4', Digit5: 'hot5', Digit6: 'hot6', Digit7: 'hot7', Digit8: 'hot8',
   };
   const st = {
     taps: [],            // {x,y} 本帧结束的点击（UI 消费）
@@ -64,7 +64,9 @@ PE.input = (() => {
       if (btn) {
         touches.set(t.identifier, { x, y, role: 'btn:' + btn });
         st.tbtn[btn] = true; actDown(btn);
-      } else if (PE.state === 'run' && !PE.ui.modalOpen() && x < PE.W * 0.45 && y > PE.H * 0.25) {
+      } else if (PE.state === 'run' && !PE.ui.modalOpen() && !PE.ui.overUI(x, y) &&
+        (PE.sys.build.active ? (x < PE.W * 0.28 && y > PE.H * 0.55) : (x < PE.W * 0.45 && y > PE.H * 0.25))) {
+        // 摇杆不得在 UI 上启动；建造模式下缩到左下角，把屏幕留给放置点击
         touches.set(t.identifier, { x, y, sx: x, sy: y, role: 'joy' });
         st.joy = { ox: x, oy: y, x: 0, y: 0 };
       } else {

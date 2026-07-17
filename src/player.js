@@ -167,11 +167,12 @@ PE.player = (() => {
 
   P.rebuildHotbar = () => {
     P.hotbar = [];
-    for (const w of P.weapons) P.hotbar.push({ id: w, kind: 'weapon' });
-    for (const uid of ['torch', 'meat', 'herbmed', 'firebomb']) {
+    // 只展示最新 3 把武器，保证烤肉/火把等消耗品永远不被挤掉
+    for (const w of P.weapons.slice(-3)) P.hotbar.push({ id: w, kind: 'weapon' });
+    for (const uid of ['meat', 'torch', 'herbmed', 'firebomb']) {
       if (uid === 'meat' || P.usables[uid]) P.hotbar.push({ id: uid, kind: 'usable' });
     }
-    P.hotbar = P.hotbar.slice(0, 6);
+    P.hotbar = P.hotbar.slice(0, 8);
     if (P.sel >= P.hotbar.length) P.sel = 0;
     P.hotbarSel = P.hotbar[P.sel];
   };
@@ -217,6 +218,14 @@ PE.player = (() => {
   };
   P.heal = n => { P.hp = Math.min(P.maxhp, P.hp + n); PE.fx.heal(P.x, P.y - 10); };
   P.dismount = () => { if (P.mount) { P.mount.mounted = false; P.mount = null; } };
+  // 骑乘可用性：'off'=可下坐骑 'on'=旁边有可骑战兽 null=无
+  P.canMount = () => {
+    if (P.mount) return 'off';
+    for (const e of PE.grid.query(P.x, P.y, 80, [])) {
+      if (e.kind === 'pet' && !e.dead && PE.D.PETS[e.type].ride) return 'on';
+    }
+    return null;
+  };
 
   /* ---------- 使用消耗品 ---------- */
   function useSelected() {
@@ -321,8 +330,6 @@ PE.player = (() => {
     const Wd = PE.world;
     // 钓鱼收杆
     if (P.fishing) { finishFishing(); return; }
-    // 骑乘解除
-    if (P.mount) { P.dismount(); PE.fx.text(P.x, P.y - 20, '下坐骑', '#e8d5a8'); return; }
     // POI
     for (const poi of Wd.pois) {
       if (U.dist2(P.x, P.y, poi.x, poi.y) > 70 * 70) continue;
@@ -372,7 +379,6 @@ PE.player = (() => {
     for (const e of near) {
       if (e.kind === 'npc') { PE.ui.openPanel('tribe', e.tribe); return; }
       if (e.kind === 'wild' && e.tameable && e.hp < e.maxhp * 0.5) { PE.sys.pets.tryTame(e); return; }
-      if (e.kind === 'pet' && PE.D.PETS[e.type].ride && !P.mount) { P.mount = e; e.mounted = true; PE.fx.text(P.x, P.y - 20, '骑上' + PE.D.PETS[e.type].name, '#e8d5a8'); return; }
     }
     for (const n of Wd.nodes) {
       if (n.fish && U.dist2(P.x, P.y, n.x, n.y) < 90 * 90) { startFishing(n); return; }
@@ -501,8 +507,23 @@ PE.player = (() => {
       if (P.hotbarSel && P.hotbarSel.kind === 'usable' && P.hotbarSel.id !== 'torch') useSelected();
       else tryInteract();
     }
+    // 骑乘/下坐骑（独立按键：PC=C，触屏=临时按钮，与驯化的交互键分离）
+    if (PE.input.pressed('mount')) {
+      if (P.mount) { P.dismount(); PE.fx.text(P.x, P.y - 20, '下坐骑', '#e8d5a8'); }
+      else {
+        for (const e of PE.grid.query(P.x, P.y, 80, [])) {
+          if (e.kind === 'pet' && !e.dead && PE.D.PETS[e.type].ride) {
+            P.mount = e; e.mounted = true;
+            PE.fx.text(P.x, P.y - 20, '骑上' + PE.D.PETS[e.type].name, '#e8d5a8');
+            break;
+          }
+        }
+      }
+    }
+    // 战兽指令切换（PC=X；HUD 按钮双端可点）
+    if (PE.input.pressed('petcmd')) PE.sys.pets.cycleStance();
     // 热键
-    for (let i = 1; i <= 6; i++) if (PE.input.pressed('hot' + i)) { if (P.hotbar[i - 1]) { P.sel = i - 1; P.hotbarSel = P.hotbar[P.sel]; PE.audio.sfx('ui'); } }
+    for (let i = 1; i <= 8; i++) if (PE.input.pressed('hot' + i)) { if (P.hotbar[i - 1]) { P.sel = i - 1; P.hotbarSel = P.hotbar[P.sel]; PE.audio.sfx('ui'); } }
     if (PE.input.pressed('swap')) { P.sel = (P.sel + 1) % P.hotbar.length; P.hotbarSel = P.hotbar[P.sel]; PE.audio.sfx('ui'); }
     // 低血心跳
     if (P.hp < P.maxhp * 0.3 && Math.floor(PE.time * 1.4) !== Math.floor((PE.time - dt) * 1.4)) PE.audio.sfx('heartbeat', { vol: 1 - P.hp / (P.maxhp * 0.3) });

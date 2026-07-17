@@ -5,8 +5,8 @@
 window.PE = {
   VERSION: '1.0.0',
   TILE: 32,
-  MAPW: 4000, MAPH: 4000,
-  GW: 125, GH: 125,          // 寻路格数
+  MAPW: 4800, MAPH: 4800,
+  GW: 150, GH: 150,          // 寻路格数 (MAPW/TILE)
   W: 0, H: 0, DPR: 1,        // 屏幕尺寸
   time: 0,                    // 全局运行秒
   hitstop: 0,                 // 顿帧计时

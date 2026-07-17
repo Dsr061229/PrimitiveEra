@@ -116,14 +116,14 @@ PE.fx = (() => {
     }
   }
   // 云影（白天真实感）
-  const clouds = []; for (let i = 0; i < 7; i++) clouds.push({ x: U.rand(0, 4000), y: U.rand(0, 4000), r: U.rand(180, 420), sp: U.rand(9, 16) });
+  const clouds = []; for (let i = 0; i < 8; i++) clouds.push({ x: U.rand(0, PE.MAPW), y: U.rand(0, PE.MAPH), r: U.rand(180, 420), sp: U.rand(9, 16) });
   function drawClouds(ctx) {
     if (PE.quality < 2 || !PE.world) return;
     const day01 = PE.world.dayLight();
     if (day01 < 0.35) return;
     ctx.fillStyle = `rgba(30,40,60,${0.09 * day01})`;
     for (const c of clouds) {
-      const x = (c.x + PE.time * c.sp) % 4600 - 300;
+      const x = (c.x + PE.time * c.sp) % (PE.MAPW + 600) - 300;
       ctx.beginPath(); ctx.ellipse(x, c.y, c.r, c.r * 0.55, 0, 0, U.TAU);
       ctx.ellipse(x + c.r * 0.7, c.y + 30, c.r * 0.7, c.r * 0.4, 0, 0, U.TAU); ctx.fill();
     }

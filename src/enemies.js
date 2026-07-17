@@ -366,10 +366,12 @@ PE.enemies = (() => {
       } else wander(e, dt);
       return;
     }
-    // 夜晚捕猎：野生掠食者主动袭击【黑暗中】的猎物——光圈内是安全的
-    if (PE.world.phase === 'night' && (e.type === 'w_wolf' || e.type === 'w_boar')) {
-      let prey = nearestCreature(e, 300, ['player', 'villager', 'pet', 'ally']);
-      if (prey && (PE.light.isLit(prey.x, prey.y) || PE.mods.innerlight && prey === PE.player)) prey = null;
+    // 掠食者：鬣狗全天主动袭击（含玩家/村民/战兽）；野狼/野猪夜晚捕猎【黑暗中】的目标
+    const night = PE.world.phase === 'night';
+    const predator = e.def.aggressive || (night && (e.type === 'w_wolf' || e.type === 'w_boar'));
+    if (predator) {
+      let prey = nearestCreature(e, e.def.aggro || 300, ['player', 'villager', 'pet', 'ally']);
+      if (night && prey && (PE.light.isLit(prey.x, prey.y) || PE.mods.innerlight && prey === PE.player)) prey = null; // 夜晚光圈庇护
       if (prey) {
         const dp = U.dist(e.x, e.y, prey.x, prey.y);
         if (dp < e.r + prey.r + 8) { e.walk = 0; attackCreature(e, prey, dt); }
@@ -482,7 +484,7 @@ PE.enemies = (() => {
       });
       const comp = {};
       if (day === 1) comp.wolf = 3; // 第一夜保底轻松：只有三头狼
-      else if (day === 2) { comp.wolf = 4; }
+      else if (day === 2) { comp.wolf = 5; }
       else {
         let spent = 0;
         while (spent < budget) {
