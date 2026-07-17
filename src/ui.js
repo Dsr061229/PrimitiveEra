@@ -174,6 +174,13 @@ PE.ui = (() => {
     }
     // 底左：小地图
     drawMinimap(ctx);
+    // 战兽指令按钮（有战兽时显示，双端可点；PC 也可按 X 切换）
+    const petN = W.ents.filter(e => e.kind === 'pet' && !e.dead && e.type !== 'eagle').length;
+    if (petN > 0) {
+      const st = PE.sys.pets.stance;
+      const lbl = st === 'follow' ? '🐾 跟随' : st === 'attack' ? '🐾 出击' : '🐾 待命';
+      if (btn(ctx, sc(10), PE.H - sc(140) - sc(52), sc(90), sc(36), lbl, { font: F(13), color: st === 'attack' ? '#8a3a3a' : st === 'stay' ? '#3a5a7a' : undefined })) PE.sys.pets.cycleStance();
+    }
     if (!PE.isTouch) {
       // PC：右侧功能按钮列
       const fbS = sc(46);
@@ -298,11 +305,14 @@ PE.ui = (() => {
       ctx.fillStyle = 'rgba(240,230,200,0.4)';
       ctx.beginPath(); ctx.arc(j.ox + j.x * sc(56), j.oy + j.y * sc(56), sc(26), 0, U.TAU); ctx.fill();
     }
-    // 动作按钮：只留攻击 + 交互，右下角垂直排列（闪避已按反馈移除）
+    // 动作按钮：攻击 + 交互；靠近可骑战兽时临时出现 骑行/下来 按钮
+    PE.input.clearBtns();
     const defs = [
       ['atk', '⚔', PE.W - sc(80), PE.H - sc(90), sc(54)],
       ['interact', '✋', PE.W - sc(92), PE.H - sc(214), sc(42)],
     ];
+    const cm = PE.player.canMount();
+    if (cm) defs.push(['mount', cm === 'off' ? '⬇' : '🐗', PE.W - sc(186), PE.H - sc(128), sc(38)]);
     for (const [name, icon, x, y, r] of defs) {
       PE.input.regBtn(name, x, y, r * 1.25);
       const on = PE.input.st.tbtn[name];
@@ -350,6 +360,12 @@ PE.ui = (() => {
       PE.S.rr(ctx, s.x - tw / 2, s.y - sc(78), tw, sc(24), sc(6)); ctx.fill();
       ctx.fillStyle = '#ffcf5f';
       ctx.fillText((PE.isTouch ? '✋ ' : '[E] ') + hint, s.x, s.y - sc(61));
+    }
+    // 骑乘提示（PC：C 键；触屏有专属按钮）
+    if (!PE.isTouch && P.canMount()) {
+      const s = PE.cam.toScreen(P.x, P.y);
+      ctx.fillStyle = '#9fd7e8'; ctx.font = F(12); ctx.textAlign = 'center';
+      ctx.fillText(P.canMount() === 'off' ? '[C] 下坐骑' : '[C] 骑乘', s.x, s.y - sc(92));
     }
   }
 
@@ -742,9 +758,9 @@ PE.ui = (() => {
     ui._newRects = [];
     drawHUD(ctx);
     drawBuildOverlay(ctx);
+    drawToasts(ctx); // 吐司画在面板下层，不再遮挡面板文字
     drawPanels(ctx);
     drawModals(ctx);
-    drawToasts(ctx);
     if (PE.paused) drawPause(ctx);
     ui.uiRects = ui._newRects;
   };
@@ -840,16 +856,17 @@ PE.ui = (() => {
     ctx.fillText(`🗿 图腾天赋 · 剩余 ${PE.meta.totem} 点`, PE.W / 2, sc(60));
     const mw = Math.min(sc(560), PE.W - sc(30));
     const mx = PE.W / 2 - mw / 2;
+    const rowH = Math.min(sc(58), (PE.H - sc(180)) / PE.D.TALENTS.length); // 小屏压缩行高
     PE.D.TALENTS.forEach((t, i) => {
-      const y = sc(96) + i * sc(58);
+      const y = sc(88) + i * rowH;
       const lvl = PE.meta.talents[t.id] || 0;
       const maxed = lvl >= t.max;
       const cost = maxed ? 0 : t.cost(lvl);
       ctx.fillStyle = '#f0e6cc'; ctx.font = FB(15); ctx.textAlign = 'left';
-      ctx.fillText(`${t.name}  ${'●'.repeat(lvl)}${'○'.repeat(t.max - lvl)}`, mx, y + sc(20));
+      ctx.fillText(`${t.name}  ${'●'.repeat(lvl)}${'○'.repeat(t.max - lvl)}`, mx, y + rowH * 0.42);
       ctx.fillStyle = '#a89c80'; ctx.font = F(12);
-      ctx.fillText(t.desc, mx, y + sc(40));
-      if (btn(ctx, mx + mw - sc(130), y + sc(4), sc(126), sc(40), maxed ? '已满' : `强化 🗿${cost}`, { font: F(13), disabled: maxed || PE.meta.totem < cost })) {
+      ctx.fillText(t.desc, mx, y + rowH * 0.82);
+      if (btn(ctx, mx + mw - sc(130), y + sc(2), sc(126), Math.min(sc(40), rowH - sc(6)), maxed ? '已满' : `强化 🗿${cost}`, { font: F(13), disabled: maxed || PE.meta.totem < cost })) {
         PE.meta.totem -= cost; PE.meta.talents[t.id] = lvl + 1; PE.sys.saveMeta(); PE.audio.sfx('bless');
       }
     });

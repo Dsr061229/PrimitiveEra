@@ -12,10 +12,10 @@ PE.world = (() => {
     ents: [], buildings: [], projs: [], pickups: [],
     nodes: [], pois: [],
     btile: new Map(),          // tileKey -> building
-    fog: null, FOGC: 100, FOGN: 40,
+    fog: null, FOGC: 120, FOGN: 40,
     paintings: 0, frags: {}, artifacts: {},
     fear: 0, kills: 0, nightsSurvived: 0, threatsToday: [],
-    camp: { x: 2000, y: 2100 }, campfire: null,
+    camp: { x: 2400, y: 2520 }, campfire: null, // 实际以 D.MAP.camp 为准（init 时同步）
     fuelT: 0, emberAcc: 0, warpaintNights: 0,
     seed: 0, rng: Math.random,
     groundCv: null, miniCv: null,
@@ -97,7 +97,8 @@ PE.world = (() => {
 
   /* ---------- 地面烘焙（半分辨率 2000x2000） ---------- */
   W.bakeGround = () => {
-    const cv = document.createElement('canvas'); cv.width = 2000; cv.height = 2000;
+    const cv = document.createElement('canvas');
+    cv.width = PE.MAPW / 2; cv.height = PE.MAPH / 2;
     const c = cv.getContext('2d'), s = 0.5; // 世界->烘焙 缩放
     for (let ty = 0; ty < PE.GH; ty++) for (let tx = 0; tx < PE.GW; tx++) {
       const wx = tx * T + 16, wy = ty * T + 16;
@@ -120,7 +121,7 @@ PE.world = (() => {
     // 水岸高光
     c.strokeStyle = 'rgba(230,225,200,0.35)'; c.lineWidth = 2;
     const rb = PE.D.MAP.riverBand;
-    for (const x of [rb.x0, rb.x1]) { c.beginPath(); c.moveTo(x * s, 0); c.lineTo(x * s, 2000); c.stroke(); }
+    for (const x of [rb.x0, rb.x1]) { c.beginPath(); c.moveTo(x * s, 0); c.lineTo(x * s, cv.height); c.stroke(); }
     W.groundCv = cv;
     // 小地图底
     const m = document.createElement('canvas'); m.width = 220; m.height = 220;
@@ -169,11 +170,12 @@ PE.world = (() => {
       }
     }
   }
-  function hitsFor(t) { return t === 'tree' ? 4 : t === 'rock' ? 5 : t === 'bush' ? 2 : t === 'herb' ? 1 : t === 'clay' ? 3 : t === 'obsidian' ? 6 : t === 'star' ? 6 : 1; }
+  function hitsFor(t) { return t === 'tree' ? 4 : t === 'rock' ? 5 : t === 'bush' ? 2 : t === 'herb' ? 1 : t === 'clay' ? 3 : t === 'bones' ? 3 : t === 'obsidian' ? 6 : t === 'star' ? 6 : 1; }
   W.nodeYield = n => { // 采集掉落
     switch (n.type) {
       case 'tree': return { wood: U.randi(2, 3) };
       case 'mushroom': return { food: 3 };
+      case 'bones': return { bone: U.randi(1, 2) };
       case 'rock': return Math.random() < 0.2 ? { stone: 1, flint: 1 } : { stone: 1 };
       case 'bush': return { food: 2 };
       case 'herb': return { herb: U.randi(1, 2) };
@@ -193,6 +195,7 @@ PE.world = (() => {
     scatter('cave', 'rock', 18); scatter('cave', 'obsidian', 8);
     scatter('snow', 'rock', 10); scatter('snow', 'tree', 10); scatter('snow', 'star', 2);
     scatter('volcano', 'obsidian', 10); scatter('volcano', 'rock', 12);
+    scatter('bonewaste', 'bones', 14); scatter('bonewaste', 'rock', 8); scatter('bonewaste', 'bush', 4);
     // 河中鱼点
     const rb = PE.D.MAP.riverBand;
     for (let i = 0; i < 6; i++) {
@@ -238,6 +241,7 @@ PE.world = (() => {
 
   /* ---------- 初始化一局 ---------- */
   W.init = (classId, talents) => {
+    W.camp.x = PE.D.MAP.camp.x; W.camp.y = PE.D.MAP.camp.y;
     W.day = 1; W.phase = 'day'; W.phaseT = 0; W.endless = false;
     W.weather = 'sun'; W.nextWeather = 'sun'; W.bloodmoon = false; W.nightmare = false;
     W.ember = 60; W.res = { wood: 40, stone: 20, food: 30, fur: 2, flint: 4, bone: 0, clay: 0, herb: 0, obsidian: 0, star: 0 };

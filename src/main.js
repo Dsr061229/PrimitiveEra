@@ -246,6 +246,7 @@ PE.main = (() => {
       case 'bush': PE.S.shadow(ctx, 12, 0.3, 0.18); PE.S.drawBush(ctx, n); break;
       case 'herb': PE.S.drawHerb(ctx); break;
       case 'mushroom': PE.S.drawMushroom(ctx); break;
+      case 'bones': PE.S.shadow(ctx, 13, 0.32, 0.18); PE.S.drawBones(ctx); break;
       case 'clay': PE.S.drawClay(ctx); break;
       case 'fishspot': PE.S.drawFishSpot(ctx, PE.time); break;
     }

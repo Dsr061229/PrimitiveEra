@@ -141,6 +141,7 @@ PE.S = (() => {
     deer:   () => ({ body: '#b08d5e', belly: '#d8bd94', size: 0.9, tail: 'thin', head: { snout: 1, ears: 1, horn: 1 } }),
     rabbit: () => ({ body: '#cbb9a0', belly: '#efe6d6', size: 0.45, tail: 'thin', head: { snout: 1, ears: 1 } }),
     warwolf:() => ({ body: '#7d8b9a', belly: '#aab8c4', size: 0.9, tail: 'thick', head: { snout: 1, ears: 1, fangs: 1 }, eyes: '#6ddcff' }),
+    hyena:  () => ({ body: '#a08a5a', belly: '#c4b084', size: 0.8, tail: 'thin', head: { snout: 1, ears: 1, fangs: 1, mane: 1 }, eyes: '#e8b93d' }),
     ridingboar: () => ({ body: '#6e5138', belly: '#98causeoff', size: 1.15, tail: 'thin', plates: 1, head: { snout: 1, tusks: 1, ears: 1 } }),
     sabercub: () => ({ body: '#d8a45f', belly: '#f0d8aa', size: 0.75, tail: 'thin', head: { snout: 1, ears: 1, fangs: 1 }, eyes: '#6dffb0' }),
   };
@@ -281,6 +282,15 @@ PE.S = (() => {
     ctx.fillStyle = '#b98058'; ctx.beginPath(); ctx.ellipse(0, -3, 14, 7, 0, 0, U.TAU); ctx.fill();
     ctx.strokeStyle = OUT; ctx.lineWidth = 1.5; ctx.stroke();
     ctx.fillStyle = '#9a6845'; ctx.beginPath(); ctx.ellipse(0, -4, 8, 4, 0, 0, U.TAU); ctx.fill();
+  }
+  function drawBones(ctx) {
+    ctx.strokeStyle = '#e8e2d0'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(-12, -2); ctx.lineTo(10, -8); ctx.moveTo(-9, -9); ctx.lineTo(11, -1); ctx.stroke();
+    ctx.fillStyle = '#e8e2d0';
+    for (const [x, y] of [[-12, -2], [10, -8], [-9, -9], [11, -1]]) { ctx.beginPath(); ctx.arc(x, y, 3, 0, U.TAU); ctx.fill(); }
+    ctx.beginPath(); ctx.arc(2, -14, 7, 0, U.TAU); ctx.fill();
+    ctx.strokeStyle = OUT; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = OUT; ctx.beginPath(); ctx.arc(-1, -15, 1.8, 0, U.TAU); ctx.arc(4, -15, 1.8, 0, U.TAU); ctx.fill();
   }
   function drawMushroom(ctx) {
     for (const [x, s] of [[-6, 0.7], [4, 1], [-1, 0.55]]) {
@@ -522,5 +532,5 @@ PE.S = (() => {
     iconCache[key] = cv; return cv;
   }
 
-  return { shadow, rr, vgrad, shade, humanoid, quadruped, QUAD, drawWeapon, drawSnake, drawBat, drawEye, drawBogspawn, drawBossClaw, drawBossShadow, drawBossLord, drawTree, drawRock, drawBush, drawHerb, drawClay, drawMushroom, drawChest, drawFishSpot, drawBuilding, drawCave, drawPainting, drawHut, drawArtifactPickup, icon, OUT };
+  return { shadow, rr, vgrad, shade, humanoid, quadruped, QUAD, drawWeapon, drawSnake, drawBat, drawEye, drawBogspawn, drawBossClaw, drawBossShadow, drawBossLord, drawTree, drawRock, drawBush, drawHerb, drawClay, drawMushroom, drawBones, drawChest, drawFishSpot, drawBuilding, drawCave, drawPainting, drawHut, drawArtifactPickup, icon, OUT };
 })();

@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a0c10">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" href="icon-192.png">
 <title>原始纪元 Primitive Era</title>
 <style>
   html,body{margin:0;padding:0;background:#0a0c10;overflow:hidden;height:100%;touch-action:none;
@@ -29,5 +34,9 @@
 <script src="src/systems.js"></script>
 <script src="src/ui.js"></script>
 <script src="src/main.js"></script>
+<script>
+// PWA：注册 Service Worker（可安装到桌面、离线可玩）
+if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+</script>
 </body>
 </html>
